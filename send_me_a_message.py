@@ -186,17 +186,20 @@ class TradingStrategyScanner:
         current_lower_shadow = min(current['HA_Open'], current['HA_Close']) - current['HA_Low']
         
         # 이전 캔들 정보
+        previous_color = 'GREEN' if previous['HA_Close'] > previous['HA_Open'] else 'RED'
         previous_body = abs(previous['HA_Close'] - previous['HA_Open'])
         
         # 매수 신호: 발아래 꼬리가 없는 초록색 양봉이 이전 몸통보다 크면
         if (current['HA_Close'] > current['HA_Open'] and  # 초록색 양봉
-            current_lower_shadow < current_body * 0.1 and  # 발아래 꼬리 거의 없음
+            current_lower_shadow == 0 and  # 발아래 꼬리 없음
+            previous_color == 'GREEN' and  # 이전 캔들이 초록색
             current_body > previous_body):  # 이전 몸통보다 큼
             return 'BUY'
         
         # 매도 신호: 윗꼬리가 없는 빨간색 음봉이 이전 몸통보다 크면
         elif (current['HA_Close'] < current['HA_Open'] and  # 빨간색 음봉
-              current_upper_shadow < current_body * 0.1 and  # 윗꼬리 거의 없음
+              current_upper_shadow == 0 and  # 윗꼬리 없음
+              previous_color == 'RED' and  # 이전 캔들이 빨간색
               current_body > previous_body):  # 이전 몸통보다 큼
             return 'SELL'
         
@@ -323,8 +326,11 @@ class TradingStrategyScanner:
             time.sleep(0.1)
         
         # 텔레그램 메시지 생성
-        message = self.create_telegram_message(signals, current_time)
-        self.send_telegram_message(message)       
+        if signals:
+            message = self.create_telegram_message(signals, current_time)
+            self.send_telegram_message(message)
+        else:
+            print(f"찾은 코인 없음")        
 
         print(f"스캔 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"발견된 신호: {len(signals)}개")
