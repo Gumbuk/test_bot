@@ -358,6 +358,20 @@ class TradingStrategyScanner:
         
         return message
 
+def send_alive_message():
+    """2시간마다 생존 확인 메시지 전송"""
+    try:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        message = f"💓 <b>I'm Alive!!</b>\n"
+        message += f"⏰ 시간: {current_time}\n"
+        message += f" 스캐너가 정상 작동 중입니다."
+        
+        scanner = TradingStrategyScanner()
+        scanner.send_telegram_message(message)
+        print(f"✅ 생존 확인 메시지 전송 완료: {current_time}")
+    except Exception as e:
+        print(f"❌ 생존 확인 메시지 전송 실패: {str(e)}")
+
 def run_scheduled_scan():
     """스케줄된 스캔 실행"""
     scanner = TradingStrategyScanner(interval='15m', volume_threshold=1000000)
@@ -387,6 +401,7 @@ def main():
     
     print("🚀 스케줄러를 시작합니다...")
     print("📅 매 시각 10분, 25분, 40분, 55분마다 스캔을 실행합니다.")
+    print("📅 2시간마다 생존 확인 메시지를 전송합니다.")
     print("⏰ 현재 시간:", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     print("🛑 중지하려면 Ctrl+C를 누르세요.")
     print("-" * 60)
@@ -396,6 +411,9 @@ def main():
     schedule.every().hour.at(":25").do(run_scheduled_scan)
     schedule.every().hour.at(":40").do(run_scheduled_scan)
     schedule.every().hour.at(":55").do(run_scheduled_scan)
+    
+    # 2시간마다 생존 확인 메시지 전송
+    schedule.every(2).hours.do(send_alive_message)
     
     # 스케줄러 실행
     try:
