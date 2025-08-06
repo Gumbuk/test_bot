@@ -12,4 +12,3 @@ COPY . /home
 WORKDIR /home
 
 CMD ["python3", "telegram.py"]
-CMD ["python3", "send_me_a_message.py"]
