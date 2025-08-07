@@ -383,7 +383,7 @@ def send_start_message(interval):
         message += f"⏰ 시작 시간: {current_time}\n"
         message += f"📊 스캔 시간대: {interval}\n"
         message += f"💰 거래량 기준: 1,000,000 USDT 이상\n"
-        message += f"📅 스케줄: 매 시각 10분, 25분, 40분, 55분\n"
+        message += f"📅 스케줄: 매 시각 25분, 55분\n"
         message += f"📅 생존 확인: 2시간마다\n\n"
         message += f"🎯 하이킨 아시 + 200EMA + 스토캐스틱 RSI 전략 스캐너가 시작되었습니다!"
         
@@ -393,12 +393,13 @@ def send_start_message(interval):
     except Exception as e:
         print(f"❌ 시작 메시지 전송 실패: {str(e)}")
 
-def send_alive_message():
+def send_alive_message(interval):
     """2시간마다 생존 확인 메시지 전송"""
     try:
         current_time = format_kst_time()
         message = f"💓 <b>I'm Alive!!</b>\n"
         message += f"⏰ 시간: {current_time}\n"
+        message += f"📊 스캔 시간대: {interval}\n"
         message += f" 스캐너가 정상 작동 중입니다."
         
         scanner = TradingStrategyScanner()
@@ -443,7 +444,7 @@ def main():
     
     # 시작 메시지 전송
     send_start_message(args.interval)
-    send_alive_message()
+    send_alive_message(args.interval)
     
     # 스케줄 설정
     schedule.every().hour.at(":25").do(run_scheduled_scan)
