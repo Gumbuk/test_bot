@@ -7,11 +7,27 @@ import argparse
 import schedule
 import threading
 import os
+import pytz
+
+# 한국 시간대 설정
+KST = pytz.timezone('Asia/Seoul')
 
 # 텔레그램 설정
 token = os.getenv('TELEGRAM_TOKEN')
 chat_id = os.getenv('CHAT_ID')
 url = f'https://api.telegram.org/bot{token}/sendMessage'
+
+def get_kst_time():
+    """현재 한국 시간 반환"""
+    utc_now = datetime.now(pytz.UTC)
+    kst_now = utc_now.astimezone(KST)
+    return kst_now
+
+def format_kst_time(dt=None):
+    """한국 시간을 포맷팅하여 반환"""
+    if dt is None:
+        dt = get_kst_time()
+    return dt.strftime('%Y-%m-%d %H:%M:%S KST')
 
 class TradingStrategyScanner:
     def __init__(self, interval='15m', volume_threshold=1000000):
@@ -187,17 +203,18 @@ class TradingStrategyScanner:
         
         # 이전 캔들 정보
         previous_body = abs(previous['HA_Close'] - previous['HA_Open'])
+        previous_color = 'GREEN' if previous['HA_Close'] > previous['HA_Open'] else 'RED'
         
         # 매수 신호: 발아래 꼬리가 없는 초록색 양봉이 이전 몸통보다 크면
         if (current['HA_Close'] > current['HA_Open'] and  # 초록색 양봉
             current_lower_shadow < current_body * 0.1 and  # 발아래 꼬리 거의 없음
-            current_body > previous_body):  # 이전 몸통보다 큼
+            current_body > previous_body and previous_color == 'GREEN'):  # 이전 몸통보다 큼
             return 'BUY'
         
         # 매도 신호: 윗꼬리가 없는 빨간색 음봉이 이전 몸통보다 크면
         elif (current['HA_Close'] < current['HA_Open'] and  # 빨간색 음봉
               current_upper_shadow < current_body * 0.1 and  # 윗꼬리 거의 없음
-              current_body > previous_body):  # 이전 몸통보다 큼
+              current_body > previous_body and previous_color == 'RED'):  # 이전 몸통보다 큼
             return 'SELL'
         
         return None
@@ -264,7 +281,7 @@ class TradingStrategyScanner:
             ha_signal = self.check_heikin_ashi_signals(ha_df)
             ema_position = self.check_ema_position(df, ema_200)
             stoch_rsi_signal = self.check_stochastic_rsi_signals(k_line, d_line)
-            
+
             # 전략 조건 확인 (수정된 조건)
             if ha_signal and ema_position and stoch_rsi_signal:
                 # 롱 포지션: 200EMA 위 + 과매도에서 상향 돌파 + 하이킨 아시 매수 신호
@@ -302,7 +319,7 @@ class TradingStrategyScanner:
     
     def run_scanner(self):
         """메인 스캐너 실행"""
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        current_time = format_kst_time()
         print(f"\n=== 스캔 시작: {current_time} ===")
         print(f"시간대: {self.interval}")
         print(f"거래량 기준: {self.volume_threshold:,} USDT 이상")
@@ -329,7 +346,7 @@ class TradingStrategyScanner:
         else:
             print(f"찾은 코인 없음")        
 
-        print(f"스캔 완료: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"스캔 완료: {format_kst_time()}")
         print(f"발견된 신호: {len(signals)}개")
     
     def create_telegram_message(self, signals, scan_time):
@@ -358,10 +375,28 @@ class TradingStrategyScanner:
         
         return message
 
+def send_start_message(interval):
+    """스캐너 시작 메시지 전송"""
+    try:
+        current_time = format_kst_time()
+        message = f"🚀 <b>Heikin Ashi Start!</b>\n"
+        message += f"⏰ 시작 시간: {current_time}\n"
+        message += f"📊 스캔 시간대: {interval}\n"
+        message += f"💰 거래량 기준: 1,000,000 USDT 이상\n"
+        message += f"📅 스케줄: 매 시각 10분, 25분, 40분, 55분\n"
+        message += f"📅 생존 확인: 2시간마다\n\n"
+        message += f"🎯 하이킨 아시 + 200EMA + 스토캐스틱 RSI 전략 스캐너가 시작되었습니다!"
+        
+        scanner = TradingStrategyScanner()
+        scanner.send_telegram_message(message)
+        print(f"✅ 시작 메시지 전송 완료: {current_time}")
+    except Exception as e:
+        print(f"❌ 시작 메시지 전송 실패: {str(e)}")
+
 def send_alive_message():
     """2시간마다 생존 확인 메시지 전송"""
     try:
-        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        current_time = format_kst_time()
         message = f"💓 <b>I'm Alive!!</b>\n"
         message += f"⏰ 시간: {current_time}\n"
         message += f" 스캐너가 정상 작동 중입니다."
@@ -381,7 +416,7 @@ def main():
     parser = argparse.ArgumentParser(description='하이킨 아시 + 200EMA + 스토캐스틱 RSI 전략 스캐너 (스케줄러)')
     parser.add_argument('--interval', '-i', 
                        choices=['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'],
-                       default='15m',
+                       default='30m',
                        help='캔들 시간대 (기본값: 15m)')
     parser.add_argument('--volume', '-v',
                        type=int,
@@ -400,16 +435,17 @@ def main():
         return
     
     print("🚀 스케줄러를 시작합니다...")
-    print("📅 매 시각 10분, 25분, 40분, 55분마다 스캔을 실행합니다.")
+    print("📅 매 시각 25분, 55분마다 스캔을 실행합니다.")
     print("📅 2시간마다 생존 확인 메시지를 전송합니다.")
-    print("⏰ 현재 시간:", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    print("⏰ 현재 시간:", format_kst_time())
     print("🛑 중지하려면 Ctrl+C를 누르세요.")
     print("-" * 60)
     
+    # 시작 메시지 전송
+    send_start_message(args.interval)
+    
     # 스케줄 설정
-    schedule.every().hour.at(":10").do(run_scheduled_scan)
     schedule.every().hour.at(":25").do(run_scheduled_scan)
-    schedule.every().hour.at(":40").do(run_scheduled_scan)
     schedule.every().hour.at(":55").do(run_scheduled_scan)
     
     # 2시간마다 생존 확인 메시지 전송
