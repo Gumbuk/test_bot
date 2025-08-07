@@ -12,4 +12,5 @@ RUN apt-get update \
 COPY . /home
 WORKDIR /home
 
-CMD ["python3", "telegram.py"]
+RUN chmod +x /home/start.sh
+CMD ["./start.sh"]
