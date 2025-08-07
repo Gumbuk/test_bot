@@ -6,7 +6,8 @@ RUN apt-get update \
     && pip install schedule \
     && pip install pandas \
     && pip install numpy \
-    && pip install requests
+    && pip install requests \
+    && pip install pytz
 
 COPY . /home
 WORKDIR /home
