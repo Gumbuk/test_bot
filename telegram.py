@@ -443,6 +443,7 @@ def main():
     
     # 시작 메시지 전송
     send_start_message(args.interval)
+    send_alive_message()
     
     # 스케줄 설정
     schedule.every().hour.at(":25").do(run_scheduled_scan)
